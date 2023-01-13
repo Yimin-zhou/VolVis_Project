@@ -116,12 +116,54 @@ float Volume::getSampleNearestNeighbourInterpolation(const glm::vec3& coord) con
     return getVoxel(roundToPositiveInt(coord.x), roundToPositiveInt(coord.y), roundToPositiveInt(coord.z));
 }
 
+// check if the point is in range
+bool isInBoundary(const glm::vec3& dim, const glm::vec3& coord)
+{
+    if (glm::any(glm::lessThan(coord, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord, glm::vec3(dim))))
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }     
+}
+
 // ======= TODO : IMPLEMENT the functions below for tri-linear interpolation ========
 // ======= Consider using the linearInterpolate and biLinearInterpolate functions ===
 // This function returns the trilinear interpolated value at the continuous 3D position given by coord.
 float Volume::getSampleTriLinearInterpolation(const glm::vec3& coord) const
 {
-    return 0.0f;
+    // TODO check boundary
+    if (glm::any(glm::lessThan(coord, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord, glm::vec3(m_dim))))
+        return 0.0f;
+
+    glm::ivec3 nearestCenter = glm::ivec3(round(coord.x), round(coord.y), round(coord.z));
+    if (nearestCenter.x == 0) {
+        nearestCenter = glm::vec3(nearestCenter.x + 1, nearestCenter.y, nearestCenter.z);
+    } else if (nearestCenter.x == m_dim.x) {
+        nearestCenter = glm::vec3(nearestCenter.x - 1, nearestCenter.y, nearestCenter.z);
+    }
+    if (nearestCenter.y == 0) {
+        nearestCenter = glm::vec3(nearestCenter.x, nearestCenter.y + 1, nearestCenter.z);
+    } else if (nearestCenter.y == m_dim.y) {
+        nearestCenter = glm::vec3(nearestCenter.x, nearestCenter.y - 1, nearestCenter.z);
+    }
+
+    glm::ivec3 topLeftCoordBack = glm::ivec3(nearestCenter.x - 1, nearestCenter.y - 1, nearestCenter.z - 1);
+    glm::ivec3 bottomLeftCoordBack = glm::ivec3(nearestCenter.x - 1, nearestCenter.y, nearestCenter.z - 1);
+    glm::ivec3 topRightCoordBack = glm::ivec3(nearestCenter.x, nearestCenter.y - 1, nearestCenter.z - 1);
+    glm::ivec3 bottomRightCoordBack = glm::ivec3(nearestCenter.x, nearestCenter.y, nearestCenter.z - 1);
+    glm::ivec3 topLeftCoordFront = glm::ivec3(nearestCenter.x + 1, nearestCenter.y - 1, nearestCenter.z + 1);
+    glm::ivec3 bottomLeftCoordFront = glm::ivec3(nearestCenter.x + 1, nearestCenter.y, nearestCenter.z + 1);
+    glm::ivec3 topRightCoordFront = glm::ivec3(nearestCenter.x, nearestCenter.y - 1, nearestCenter.z + 1);
+    glm::ivec3 bottomRightCoordFront = glm::ivec3(nearestCenter.x, nearestCenter.y, nearestCenter.z + 1);
+
+    float b0 = biLinearInterpolate(glm::vec2(coord.x, coord.y), floor(coord.z));
+    float b1 = biLinearInterpolate(glm::vec2(coord.x, coord.y), ceil(coord.z));
+
+    float c = (coord.z - (float)topLeftCoordBack.z - 0.5f) / ((float)bottomLeftCoordFront.z - (float)topRightCoordBack.z);
+    return (b1 - b0) * c + b0;
 }
 
 // This function linearly interpolates the value at X using incoming values g0 and g1 given a factor (equal to the positon of x in 1D)
@@ -130,13 +172,69 @@ float Volume::getSampleTriLinearInterpolation(const glm::vec3& coord) const
 //   factor
 float Volume::linearInterpolate(float g0, float g1, float factor)
 {
-    return 0.0f;
+    return (g1 - g0) * factor + g0;
 }
 
 // This function bi-linearly interpolates the value at the given continuous 2D XY coordinate for a fixed integer z coordinate.
+//
+//x00 -a- c00 -- x01
+// |       |      |
+// b       |      |
+// |  ---  p  --  |
+// |       |      |
+//x10 --- c01 -- x11
 float Volume::biLinearInterpolate(const glm::vec2& xyCoord, int z) const
 {
-    return 0.0f;
+    glm::ivec2 nearestCenter = glm::ivec2(round(xyCoord.x), round(xyCoord.y));
+    //bool isBottom = false;
+    if (nearestCenter.x == 0) {
+        nearestCenter = glm::ivec2(nearestCenter.x + 1, nearestCenter.y);
+    } else if (nearestCenter.x == m_dim.x) {
+        nearestCenter = glm::ivec2(nearestCenter.x - 1, nearestCenter.y);
+    }
+    if (nearestCenter.y == 0) {
+        nearestCenter = glm::ivec2(nearestCenter.x, nearestCenter.y + 1);
+    } else if (nearestCenter.y == m_dim.y) {
+        //isBottom = true;
+        nearestCenter = glm::ivec2(nearestCenter.x, nearestCenter.y - 1);
+    }
+
+    glm::ivec2 topLeftCoord = glm::ivec2(nearestCenter.x - 1, nearestCenter.y - 1); // top-left
+    glm::ivec2 bottomLeftCoord = glm::ivec2(nearestCenter.x - 1, nearestCenter.y); // bottom-left
+    glm::ivec2 topRightCoord = glm::ivec2(nearestCenter.x, nearestCenter.y - 1); // top-right
+    glm::ivec2 bottomRightCoord = glm::ivec2(nearestCenter.x, nearestCenter.y); // bottom-right
+
+    float voxelTopLeft = 0.0f;
+    float voxelBottomLeft = 0.0f;
+    float voxelTopRight = 0.0f;
+    float voxelBottomRight = 0.0f;
+
+    if (isInBoundary(m_dim, glm::vec3(topLeftCoord.x, topLeftCoord.y, z))) voxelTopLeft = getVoxel(topLeftCoord.x, topLeftCoord.y, z);
+    if (isInBoundary(m_dim, glm::vec3(bottomLeftCoord.x, bottomLeftCoord.y, z)))  voxelBottomLeft = getVoxel(bottomLeftCoord.x, bottomLeftCoord.y, z);
+    if (isInBoundary(m_dim, glm::vec3(topRightCoord.x, topRightCoord.y, z)))  voxelTopRight = getVoxel(topRightCoord.x, topRightCoord.y, z);
+    if (isInBoundary(m_dim, glm::vec3(bottomRightCoord.x, bottomRightCoord.y, z)))  voxelBottomRight = getVoxel(bottomRightCoord.x, bottomRightCoord.y, z);
+
+    float a = 0.0f;
+    float b = 0.0f;
+
+    // check if at bottom of the boundary box
+    //if (isBottom) 
+    //{
+    //    a = ((float)bottomLeftCoord.x - xyCoord.x) / ((float)topRightCoord.x - (float)topLeftCoord.x);
+    //    b = (xyCoord.y - (float)bottomLeftCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
+    //} 
+    //else 
+    //{
+    //    a = (xyCoord.x - (float)bottomLeftCoord.x - 0.5f) / ((float)topRightCoord.x - (float)topLeftCoord.x);
+    //    b = ((float)bottomLeftCoord.y + 0.5f - xyCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
+    //}
+    a = (xyCoord.x - (float)bottomLeftCoord.x - 0.5f) / ((float)topRightCoord.x - (float)topLeftCoord.x);
+    b = ((float)bottomLeftCoord.y + 0.5f - xyCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
+
+    float linear1 = linearInterpolate(voxelTopLeft, voxelTopRight, a);
+    float linear2 = linearInterpolate(voxelBottomLeft, voxelBottomRight, a) ;
+
+    return linearInterpolate(linear1, linear2, b);
 }
 
 
