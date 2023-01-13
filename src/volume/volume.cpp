@@ -138,22 +138,21 @@ float Volume::getSampleTriLinearInterpolation(const glm::vec3& coord) const
     if (glm::any(glm::lessThan(coord, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord, glm::vec3(m_dim))))
         return 0.0f;
 
-    glm::ivec3 topLeftCoordBack = glm::ivec3(floor(coord.x), ceil(coord.y), floor(coord.z));
 
 
 
+    // Apply bilinear interploations to x-y coordinates
     float b0 = biLinearInterpolate(glm::vec2(coord.x, coord.y), floor(coord.z));
     float b1 = biLinearInterpolate(glm::vec2(coord.x, coord.y), ceil(coord.z));
 
 
     // Using z-distance between neighbors for normalizing to accomodate for any voxel length changes
-
+    glm::ivec3 topLeftCoordBack = glm::ivec3(floor(coord.x), ceil(coord.y), floor(coord.z));
     glm::ivec3 topRightCoordBack = glm::ivec3(ceil(coord.x), ceil(coord.y), floor(coord.z));
-    glm::ivec3 bottomRightCoordBack = glm::ivec3(ceil(coord.x), floor(coord.y), floor(coord.z));
     glm::ivec3 bottomLeftCoordFront = glm::ivec3(floor(coord.x), floor(coord.y), ceil(coord.z));
 
 
-    
+    //Apply final interpolation to the third direction to get final value
     float c = (coord.z - (float)topLeftCoordBack.z - 0.5f) / ((float)bottomLeftCoordFront.z - (float)topRightCoordBack.z);
     return linearInterpolate(b0, b1, c);
 }
@@ -177,6 +176,8 @@ float Volume::linearInterpolate(float g0, float g1, float factor)
 //x10 --- c01 -- x11
 float Volume::biLinearInterpolate(const glm::vec2& xyCoord, int z) const
 {
+
+    //Getting the nearest neighbors in the x-y directions (2 in x and 2 in y direction)
     glm::ivec2 topLeftCoord = glm::ivec2(floor(xyCoord.x) , ceil(xyCoord.y)); // top-left
     glm::ivec2 bottomLeftCoord = glm::ivec2(floor(xyCoord.x), floor(xyCoord.y)); // bottom-left
     glm::ivec2 topRightCoord = glm::ivec2(ceil(xyCoord.x), ceil(xyCoord.y)); // top-right
@@ -187,6 +188,8 @@ float Volume::biLinearInterpolate(const glm::vec2& xyCoord, int z) const
     float voxelTopRight = 0.0f;
     float voxelBottomRight = 0.0f;
 
+
+    // Getting voxel parameter if within boundaries
     if (isInBoundary(m_dim, glm::vec3(topLeftCoord.x, topLeftCoord.y, z))) voxelTopLeft = getVoxel(topLeftCoord.x, topLeftCoord.y, z);
     if (isInBoundary(m_dim, glm::vec3(bottomLeftCoord.x, bottomLeftCoord.y, z)))  voxelBottomLeft = getVoxel(bottomLeftCoord.x, bottomLeftCoord.y, z);
     if (isInBoundary(m_dim, glm::vec3(topRightCoord.x, topRightCoord.y, z)))  voxelTopRight = getVoxel(topRightCoord.x, topRightCoord.y, z);
