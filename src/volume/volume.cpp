@@ -138,32 +138,20 @@ float Volume::getSampleTriLinearInterpolation(const glm::vec3& coord) const
     if (glm::any(glm::lessThan(coord, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord, glm::vec3(m_dim))))
         return 0.0f;
 
-    glm::ivec3 nearestCenter = glm::ivec3(round(coord.x), round(coord.y), round(coord.z));
-    if (nearestCenter.x == 0) {
-        nearestCenter = glm::vec3(nearestCenter.x + 1, nearestCenter.y, nearestCenter.z);
-    } else if (nearestCenter.x == m_dim.x) {
-        nearestCenter = glm::vec3(nearestCenter.x - 1, nearestCenter.y, nearestCenter.z);
-    }
-    if (nearestCenter.y == 0) {
-        nearestCenter = glm::vec3(nearestCenter.x, nearestCenter.y + 1, nearestCenter.z);
-    } else if (nearestCenter.y == m_dim.y) {
-        nearestCenter = glm::vec3(nearestCenter.x, nearestCenter.y - 1, nearestCenter.z);
-    }
-
-    glm::ivec3 topLeftCoordBack = glm::ivec3(nearestCenter.x - 1, nearestCenter.y - 1, nearestCenter.z - 1);
-    glm::ivec3 bottomLeftCoordBack = glm::ivec3(nearestCenter.x - 1, nearestCenter.y, nearestCenter.z - 1);
-    glm::ivec3 topRightCoordBack = glm::ivec3(nearestCenter.x, nearestCenter.y - 1, nearestCenter.z - 1);
-    glm::ivec3 bottomRightCoordBack = glm::ivec3(nearestCenter.x, nearestCenter.y, nearestCenter.z - 1);
-    glm::ivec3 topLeftCoordFront = glm::ivec3(nearestCenter.x + 1, nearestCenter.y - 1, nearestCenter.z + 1);
-    glm::ivec3 bottomLeftCoordFront = glm::ivec3(nearestCenter.x + 1, nearestCenter.y, nearestCenter.z + 1);
-    glm::ivec3 topRightCoordFront = glm::ivec3(nearestCenter.x, nearestCenter.y - 1, nearestCenter.z + 1);
-    glm::ivec3 bottomRightCoordFront = glm::ivec3(nearestCenter.x, nearestCenter.y, nearestCenter.z + 1);
+    glm::ivec3 topLeftCoordBack = glm::ivec3(floor(coord.x), ceil(coord.y), floor(coord.z));
+    glm::ivec3 bottomLeftCoordBack = glm::ivec3(floor(coord.x), floor(coord.y), floor(coord.z));
+    glm::ivec3 topRightCoordBack = glm::ivec3(ceil(coord.x), ceil(coord.y), floor(coord.z));
+    glm::ivec3 bottomRightCoordBack = glm::ivec3(ceil(coord.x), floor(coord.y), floor(coord.z));
+    glm::ivec3 topLeftCoordFront = glm::ivec3(floor(coord.x), ceil(coord.y), ceil(coord.z));
+    glm::ivec3 bottomLeftCoordFront = glm::ivec3(floor(coord.x), floor(coord.y), ceil(coord.z));
+    glm::ivec3 topRightCoordFront = glm::ivec3(ceil(coord.x), floor(coord.y), ceil(coord.z));
+    glm::ivec3 bottomRightCoordFront = glm::ivec3(ceil(coord.x), floor(coord.y), ceil(coord.z));
 
     float b0 = biLinearInterpolate(glm::vec2(coord.x, coord.y), floor(coord.z));
     float b1 = biLinearInterpolate(glm::vec2(coord.x, coord.y), ceil(coord.z));
 
     float c = (coord.z - (float)topLeftCoordBack.z - 0.5f) / ((float)bottomLeftCoordFront.z - (float)topRightCoordBack.z);
-    return (b1 - b0) * c + b0;
+    return linearInterpolate(b0, b1, c);
 }
 
 // This function linearly interpolates the value at X using incoming values g0 and g1 given a factor (equal to the positon of x in 1D)
@@ -185,24 +173,10 @@ float Volume::linearInterpolate(float g0, float g1, float factor)
 //x10 --- c01 -- x11
 float Volume::biLinearInterpolate(const glm::vec2& xyCoord, int z) const
 {
-    glm::ivec2 nearestCenter = glm::ivec2(round(xyCoord.x), round(xyCoord.y));
-    //bool isBottom = false;
-    if (nearestCenter.x == 0) {
-        nearestCenter = glm::ivec2(nearestCenter.x + 1, nearestCenter.y);
-    } else if (nearestCenter.x == m_dim.x) {
-        nearestCenter = glm::ivec2(nearestCenter.x - 1, nearestCenter.y);
-    }
-    if (nearestCenter.y == 0) {
-        nearestCenter = glm::ivec2(nearestCenter.x, nearestCenter.y + 1);
-    } else if (nearestCenter.y == m_dim.y) {
-        //isBottom = true;
-        nearestCenter = glm::ivec2(nearestCenter.x, nearestCenter.y - 1);
-    }
-
-    glm::ivec2 topLeftCoord = glm::ivec2(nearestCenter.x - 1, nearestCenter.y - 1); // top-left
-    glm::ivec2 bottomLeftCoord = glm::ivec2(nearestCenter.x - 1, nearestCenter.y); // bottom-left
-    glm::ivec2 topRightCoord = glm::ivec2(nearestCenter.x, nearestCenter.y - 1); // top-right
-    glm::ivec2 bottomRightCoord = glm::ivec2(nearestCenter.x, nearestCenter.y); // bottom-right
+    glm::ivec2 topLeftCoord = glm::ivec2(floor(xyCoord.x) , ceil(xyCoord.y)); // top-left
+    glm::ivec2 bottomLeftCoord = glm::ivec2(floor(xyCoord.x), floor(xyCoord.y)); // bottom-left
+    glm::ivec2 topRightCoord = glm::ivec2(ceil(xyCoord.x), ceil(xyCoord.y)); // top-right
+    glm::ivec2 bottomRightCoord = glm::ivec2(ceil(xyCoord.x), floor(xyCoord.y)); // bottom-right
 
     float voxelTopLeft = 0.0f;
     float voxelBottomLeft = 0.0f;
@@ -217,19 +191,8 @@ float Volume::biLinearInterpolate(const glm::vec2& xyCoord, int z) const
     float a = 0.0f;
     float b = 0.0f;
 
-    // check if at bottom of the boundary box
-    //if (isBottom) 
-    //{
-    //    a = ((float)bottomLeftCoord.x - xyCoord.x) / ((float)topRightCoord.x - (float)topLeftCoord.x);
-    //    b = (xyCoord.y - (float)bottomLeftCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
-    //} 
-    //else 
-    //{
-    //    a = (xyCoord.x - (float)bottomLeftCoord.x - 0.5f) / ((float)topRightCoord.x - (float)topLeftCoord.x);
-    //    b = ((float)bottomLeftCoord.y + 0.5f - xyCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
-    //}
-    a = (xyCoord.x - (float)bottomLeftCoord.x - 0.5f) / ((float)topRightCoord.x - (float)topLeftCoord.x);
-    b = ((float)bottomLeftCoord.y + 0.5f - xyCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
+    a = (xyCoord.x - (float)bottomLeftCoord.x) / ((float)topRightCoord.x - (float)topLeftCoord.x);
+    b = ((float)bottomLeftCoord.y - xyCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
 
     float linear1 = linearInterpolate(voxelTopLeft, voxelTopRight, a);
     float linear2 = linearInterpolate(voxelBottomLeft, voxelBottomRight, a) ;
