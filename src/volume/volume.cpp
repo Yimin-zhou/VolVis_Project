@@ -139,17 +139,21 @@ float Volume::getSampleTriLinearInterpolation(const glm::vec3& coord) const
         return 0.0f;
 
     glm::ivec3 topLeftCoordBack = glm::ivec3(floor(coord.x), ceil(coord.y), floor(coord.z));
-    glm::ivec3 bottomLeftCoordBack = glm::ivec3(floor(coord.x), floor(coord.y), floor(coord.z));
-    glm::ivec3 topRightCoordBack = glm::ivec3(ceil(coord.x), ceil(coord.y), floor(coord.z));
-    glm::ivec3 bottomRightCoordBack = glm::ivec3(ceil(coord.x), floor(coord.y), floor(coord.z));
-    glm::ivec3 topLeftCoordFront = glm::ivec3(floor(coord.x), ceil(coord.y), ceil(coord.z));
-    glm::ivec3 bottomLeftCoordFront = glm::ivec3(floor(coord.x), floor(coord.y), ceil(coord.z));
-    glm::ivec3 topRightCoordFront = glm::ivec3(ceil(coord.x), floor(coord.y), ceil(coord.z));
-    glm::ivec3 bottomRightCoordFront = glm::ivec3(ceil(coord.x), floor(coord.y), ceil(coord.z));
+
+
 
     float b0 = biLinearInterpolate(glm::vec2(coord.x, coord.y), floor(coord.z));
     float b1 = biLinearInterpolate(glm::vec2(coord.x, coord.y), ceil(coord.z));
 
+
+    // Using z-distance between neighbors for normalizing to accomodate for any voxel length changes
+
+    glm::ivec3 topRightCoordBack = glm::ivec3(ceil(coord.x), ceil(coord.y), floor(coord.z));
+    glm::ivec3 bottomRightCoordBack = glm::ivec3(ceil(coord.x), floor(coord.y), floor(coord.z));
+    glm::ivec3 bottomLeftCoordFront = glm::ivec3(floor(coord.x), floor(coord.y), ceil(coord.z));
+
+
+    
     float c = (coord.z - (float)topLeftCoordBack.z - 0.5f) / ((float)bottomLeftCoordFront.z - (float)topRightCoordBack.z);
     return linearInterpolate(b0, b1, c);
 }
