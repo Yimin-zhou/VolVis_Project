@@ -30,7 +30,7 @@ protected:
     GradientVoxel getGradientNearestNeighbor(const glm::vec3& coord) const;
     GradientVoxel getGradientLinearInterpolate(const glm::vec3& coord) const;
     static GradientVoxel linearInterpolate(const GradientVoxel& g0, const GradientVoxel& g1, float factor);
-    GradientVoxel biLinearInterpolation(const glm::vec2& xyCoord, int z) const;
+
 protected:
     const glm::ivec3 m_dim;
     const std::vector<GradientVoxel> m_data;

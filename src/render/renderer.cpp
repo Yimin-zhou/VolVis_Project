@@ -9,7 +9,6 @@
 #include <tbb/blocked_range2d.h>
 #include <tbb/parallel_for.h>
 #include <tuple>
-#include <string>
 
 namespace render {
 
@@ -136,20 +135,6 @@ void Renderer::render()
 #endif
 }
 
-//glm::vec3 addVector(const glm::vec3& vec1, const glm::vec3& vec2)
-//{
-//    float x = vec1.x + vec2.x;
-//    float y = vec1.y + vec2.y;
-//    float z = vec1.z + vec2.z;
-//
-//
-//    glm::vec3 v1(1.f, 1.f, 1.f);
-//    glm::vec3 v2(2.f, 2.f, 2.f);
-//    glm::vec3 v3 = v1 + v2;
-//
-//    return glm::vec3(x, y, z);
-//}
-
 // ======= DO NOT MODIFY THIS FUNCTION ========
 // This function generates a view alongside a plane perpendicular to the camera through the center of the volume
 //  using the slicing technique.
@@ -177,6 +162,7 @@ glm::vec4 Renderer::traceRayMIP(const Ray& ray, float sampleStep) const
         const float val = m_pVolume->getSampleInterpolate(samplePos);
         maxVal = std::max(val, maxVal);
     }
+
     // Normalize the result to a range of [0 to mpVolume->maximum()].
     return glm::vec4(glm::vec3(maxVal) / m_pVolume->maximum(), 1.0f);
 }
@@ -210,10 +196,10 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
 
     const float voxelValue = m_pVolume->getSampleInterpolate(preSamplePos);
     // TODO: shading
-    glm::vec3 shading = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(samplePos), m_pCamera->position(), samplePos);
+    //  computePhongShading(iso)
     if (isInRange)
     {
-        return glm::vec4(shading, 1.0f);
+        return glm::vec4(isoColor, 1.0f);
     }
     else
     {
@@ -239,38 +225,7 @@ float Renderer::bisectionAccuracy(const Ray& ray, float t0, float t1, float isoV
 // You are free to choose any specular power that you'd like.
 glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::GradientVoxel& gradient, const glm::vec3& L, const glm::vec3& V)
 {
-
-    const float k_a = 0.1;
-    const float k_d = 0.7;
-    const float k_s = 0.2;
-    const float alpha = 100;
-    glm::vec3 zero_vec = glm::vec3(0.0f);
-
-
-
-
-    // Get normalized vectors
-    glm::vec3 gradient_hat = gradient.magnitude != 0 ? glm::normalize(gradient.dir) : zero_vec;
-    glm::vec3 L_hat = glm::length(L) != 0 ? glm::normalize(L) : zero_vec;
-    glm::vec3 V_hat = glm::length(V) != 0 ? glm::normalize(V) : zero_vec;
-   
-    
-    // Get reflection vector
-    glm::vec3 R = 2.0f * (L * gradient.dir) * gradient.dir - L;
-    glm::vec3 R_hat = glm::normalize(R);
-    glm::vec3 x = k_s * pow(glm::dot(R_hat, V_hat), alpha) * color;
-    glm::vec3 y = k_a * color;
-    glm::vec3 z = k_d * glm::dot(L_hat, gradient_hat) * color;
-
-    //glm::vec3 v1(1.f, 1.f, 1.f);
-    //glm::vec3 v2(2.f, 2.f, 2.f);
-    //glm::vec3 v3 = v1 + v2;
-
-    //Calculate illumination
-    glm::vec3 Illumination_vec = x+y+z;
-
-
-    return Illumination_vec;
+    return glm::vec3(0.0f);
 }
 
 // ======= TODO: IMPLEMENT ========
