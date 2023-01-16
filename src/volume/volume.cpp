@@ -117,7 +117,7 @@ float Volume::getSampleNearestNeighbourInterpolation(const glm::vec3& coord) con
 }
 
 // check if the point is in range
-bool isInBoundary(const glm::vec3& dim, const glm::vec3& coord)
+bool checkBoundary(const glm::vec3& dim, const glm::vec3& coord)
 {
     if (glm::any(glm::lessThan(coord, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord, glm::vec3(dim))))
     {
@@ -153,7 +153,7 @@ float Volume::getSampleTriLinearInterpolation(const glm::vec3& coord) const
 
 
     //Apply final interpolation to the third direction to get final value
-    float c = (coord.z - (float)topLeftCoordBack.z - 0.5f) / ((float)bottomLeftCoordFront.z - (float)topRightCoordBack.z);
+    float c = (coord.z - (float)topLeftCoordBack.z) / ((float)bottomLeftCoordFront.z - (float)topRightCoordBack.z);
     return linearInterpolate(b0, b1, c);
 }
 
@@ -190,10 +190,10 @@ float Volume::biLinearInterpolate(const glm::vec2& xyCoord, int z) const
 
 
     // Getting voxel parameter if within boundaries
-    if (isInBoundary(m_dim, glm::vec3(topLeftCoord.x, topLeftCoord.y, z))) voxelTopLeft = getVoxel(topLeftCoord.x, topLeftCoord.y, z);
-    if (isInBoundary(m_dim, glm::vec3(bottomLeftCoord.x, bottomLeftCoord.y, z)))  voxelBottomLeft = getVoxel(bottomLeftCoord.x, bottomLeftCoord.y, z);
-    if (isInBoundary(m_dim, glm::vec3(topRightCoord.x, topRightCoord.y, z)))  voxelTopRight = getVoxel(topRightCoord.x, topRightCoord.y, z);
-    if (isInBoundary(m_dim, glm::vec3(bottomRightCoord.x, bottomRightCoord.y, z)))  voxelBottomRight = getVoxel(bottomRightCoord.x, bottomRightCoord.y, z);
+    if (checkBoundary(m_dim, glm::vec3(topLeftCoord.x, topLeftCoord.y, z))) voxelTopLeft = getVoxel(topLeftCoord.x, topLeftCoord.y, z);
+    if (checkBoundary(m_dim, glm::vec3(bottomLeftCoord.x, bottomLeftCoord.y, z)))  voxelBottomLeft = getVoxel(bottomLeftCoord.x, bottomLeftCoord.y, z);
+    if (checkBoundary(m_dim, glm::vec3(topRightCoord.x, topRightCoord.y, z)))  voxelTopRight = getVoxel(topRightCoord.x, topRightCoord.y, z);
+    if (checkBoundary(m_dim, glm::vec3(bottomRightCoord.x, bottomRightCoord.y, z)))  voxelBottomRight = getVoxel(bottomRightCoord.x, bottomRightCoord.y, z);
 
     float a = 0.0f;
     float b = 0.0f;
