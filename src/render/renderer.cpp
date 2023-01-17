@@ -210,10 +210,16 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
 
     const float voxelValue = m_pVolume->getSampleInterpolate(preSamplePos);
     // TODO: shading
-    glm::vec3 shading = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(samplePos), m_pCamera->position(), samplePos);
+    
     if (isInRange)
     {
-        return glm::vec4(shading, 1.0f);
+        glm::vec3 result_color = isoColor;
+        if (m_config.volumeShading) {
+            //We use the camera position for the light vector, however reverse it as we need the light going from the object to camera and not nice versa
+            result_color = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(preSamplePos), -1.0f * m_pCamera->position(), m_pCamera->position());
+        }
+            
+        return glm::vec4(result_color, 1.0f);
     }
     else
     {
@@ -256,21 +262,17 @@ glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::Gr
    
     
     // Get reflection vector
-    glm::vec3 R = 2.0f * (L * gradient.dir) * gradient.dir - L;
-    glm::vec3 R_hat = glm::normalize(R);
-    glm::vec3 x = k_s * pow(glm::dot(R_hat, V_hat), alpha) * color;
-    glm::vec3 y = k_a * color;
-    glm::vec3 z = k_d * glm::dot(L_hat, gradient_hat) * color;
-
-    //glm::vec3 v1(1.f, 1.f, 1.f);
-    //glm::vec3 v2(2.f, 2.f, 2.f);
-    //glm::vec3 v3 = v1 + v2;
+    glm::vec3 R = 2.0f * glm::dot(L_hat ,gradient_hat) * gradient_hat - L_hat;
+    glm::vec3 R_hat = glm::length(R) != 0 ? glm::normalize(R) : zero_vec;
+    glm::vec3 specular = k_s * pow(glm::dot(R_hat, V_hat), alpha) * color;
+    glm::vec3 ambient = k_a * color;
+    glm::vec3 diffuse = k_d * glm::dot(L_hat, gradient_hat) * color;
 
     //Calculate illumination
-    glm::vec3 Illumination_vec = x+y+z;
+    glm::vec3 i_p = ambient+specular+diffuse;
 
 
-    return Illumination_vec;
+    return i_p;
 }
 
 // ======= TODO: IMPLEMENT ========
