@@ -14,7 +14,7 @@ struct GradientVoxel {
 class GradientVolume {
 public:
     // DO NOT REMOVE
-    InterpolationMode interpolationMode { InterpolationMode::NearestNeighbour };
+    InterpolationMode interpolationMode { InterpolationMode::Linear };
 
 public:
     GradientVolume(const Volume& volume);

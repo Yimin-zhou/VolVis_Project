@@ -194,36 +194,37 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
     // Incrementing samplePos directly instead of recomputing it each frame gives a measureable speed-up.
     glm::vec3 samplePos = ray.origin + ray.tmin * ray.direction;
     glm::vec3 preSamplePos = samplePos;
-    bool isInRange = false;
+    glm::vec3 accuratePos = glm::vec3(0);
+    float preT = 0.0f;
+    bool isHit = false;
     const glm::vec3 increment = sampleStep * ray.direction;
     for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) 
     {
         const float val = m_pVolume->getSampleInterpolate(samplePos);
-        // TODO: bisection
         if (m_config.isoValue < val) 
         {
-            isInRange = true;
+             accuratePos = ray.origin + ray.tmin * ray.direction
+                + (bisectionAccuracy(ray, preT, t, m_config.isoValue) - ray.tmin) * ray.direction;
+            isHit = true;
             break;
         }
         preSamplePos = samplePos;
+        preT = t;
     }
 
-    const float voxelValue = m_pVolume->getSampleInterpolate(preSamplePos);
-    // TODO: shading
-    
-    if (isInRange)
+    if (isHit)
     {
         glm::vec3 result_color = isoColor;
         if (m_config.volumeShading) {
             //We use the camera position for the light vector, however reverse it as we need the light going from the object to camera and not nice versa
-            result_color = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(preSamplePos), -1.0f * m_pCamera->position(), m_pCamera->position());
+            result_color = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(accuratePos), -1.0f * m_pCamera->position(), m_pCamera->position());
         }
             
         return glm::vec4(result_color, 1.0f);
     }
     else
     {
-        return glm::vec4(glm::vec3(0), 1.0f);
+        return glm::vec4(glm::vec3(0), 0.0f);
     }
 }
 
@@ -233,7 +234,28 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
 // iterations such that it does not get stuck in degerate cases.
 float Renderer::bisectionAccuracy(const Ray& ray, float t0, float t1, float isoValue) const
 {
-    return 0.0f;
+    glm::vec3 startPos = ray.origin + ray.tmin * ray.direction;
+    glm::vec3 leftPos = startPos  + (t0 - ray.tmin) * ray.direction;
+    glm::vec3 rightPos = startPos + (t1 - ray.tmin) * ray.direction;
+
+    float l = t0;
+    float r = t1;
+    float m = 0;
+    int iteration = 50;
+
+    while (l <= r || iteration < 0) {
+        m = (r - l) / 2.0f + l;
+        glm::vec3 middilPos = startPos + (m - ray.tmin) * ray.direction;
+        if (m_pVolume->getSampleInterpolate(middilPos) < isoValue - 0.01f) {
+            l = m + 0.01;
+        } else if (m_pVolume->getSampleInterpolate(middilPos) > isoValue + 0.01f) {
+            r = m - 0.01;
+        } else {
+            return m;
+        }
+        --iteration;
+    }
+    return m;
 }
 
 // ======= TODO: IMPLEMENT ========
@@ -245,22 +267,17 @@ float Renderer::bisectionAccuracy(const Ray& ray, float t0, float t1, float isoV
 // You are free to choose any specular power that you'd like.
 glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::GradientVoxel& gradient, const glm::vec3& L, const glm::vec3& V)
 {
-
     const float k_a = 0.1;
     const float k_d = 0.7;
     const float k_s = 0.2;
     const float alpha = 100;
     glm::vec3 zero_vec = glm::vec3(0.0f);
 
-
-
-
     // Get normalized vectors
     glm::vec3 gradient_hat = gradient.magnitude != 0 ? glm::normalize(gradient.dir) : zero_vec;
     glm::vec3 L_hat = glm::length(L) != 0 ? glm::normalize(L) : zero_vec;
     glm::vec3 V_hat = glm::length(V) != 0 ? glm::normalize(V) : zero_vec;
    
-    
     // Get reflection vector
     glm::vec3 R = 2.0f * glm::dot(L_hat ,gradient_hat) * gradient_hat - L_hat;
     glm::vec3 R_hat = glm::length(R) != 0 ? glm::normalize(R) : zero_vec;
@@ -270,7 +287,6 @@ glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::Gr
 
     //Calculate illumination
     glm::vec3 i_p = ambient+specular+diffuse;
-
 
     return i_p;
 }
