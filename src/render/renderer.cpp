@@ -235,8 +235,6 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
 float Renderer::bisectionAccuracy(const Ray& ray, float t0, float t1, float isoValue) const
 {
     glm::vec3 startPos = ray.origin + ray.tmin * ray.direction;
-    glm::vec3 leftPos = startPos  + (t0 - ray.tmin) * ray.direction;
-    glm::vec3 rightPos = startPos + (t1 - ray.tmin) * ray.direction;
 
     float l = t0;
     float r = t1;
@@ -296,7 +294,29 @@ glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::Gr
 // Use getTFValue to compute the color for a given volume value according to the 1D transfer function.
 glm::vec4 Renderer::traceRayComposite(const Ray& ray, float sampleStep) const
 {
-    return glm::vec4(0.0f);
+    glm::vec3 samplePos = ray.origin + ray.tmin * ray.direction;
+    const glm::vec3 increment = sampleStep * ray.direction;
+
+    glm::vec4 sampleColor, preSampleColor  = glm::vec4(0.0f);
+
+    for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) 
+    {
+        const float val = m_pVolume->getSampleInterpolate(samplePos);
+
+        // front to back
+        glm::vec4 c = getTFValue(val);
+        // phong shading
+        glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
+            -1.0f * m_pCamera->position(), m_pCamera->position());
+        if (!glm::any(glm::isnan(shading)))
+        {
+            c = glm::vec4(shading, c.a);
+        }
+
+        sampleColor = preSampleColor + (1.0f - preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
+        preSampleColor = sampleColor;
+    }
+    return sampleColor;
 }
 
 // ======= DO NOT MODIFY THIS FUNCTION ========
