@@ -48,6 +48,8 @@ protected:
 
     static glm::vec3 computePhongShading(const glm::vec3& color, const volume::GradientVoxel& gradient, const glm::vec3& lightDirection, const glm::vec3& viewDirection);
 
+    bool isInRangeOfTriangle(float traingleHeight, float triangleRadius, float traingleApex, float yCoord, float xCoord) const;
+
 private:
     void resizeImage(const glm::ivec2& resolution);
     void resetImage();
@@ -57,6 +59,7 @@ private:
 
     bool instersectRayVolumeBounds(Ray& ray, const Bounds& volumeBounds) const;
     void fillColor(int x, int y, const glm::vec4& color);
+
 
 protected:
     const volume::Volume* m_pVolume;

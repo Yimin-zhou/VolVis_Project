@@ -347,8 +347,26 @@ glm::vec4 Renderer::traceRayTF2D(const Ray& ray, float sampleStep) const
 // The 2D transfer function settings can be accessed through m_config.TF2DIntensity and m_config.TF2DRadius.
 float Renderer::getTF2DOpacity(float intensity, float gradientMagnitude) const
 {
+
+    float traingleHeight = m_pGradientVolume->maxMagnitude() - m_pGradientVolume->minMagnitude();    
+
+    if (isInRangeOfTriangle(traingleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, gradientMagnitude,intensity)) {
+        float x_traingle = (m_config.TF2DRadius * gradientMagnitude) / (2 * traingleHeight);
+
+
+        //Calculate the ratio of distance of intensity from apex/ length from apex vertical to diagonal
+        float ratio = (std::abs(m_config.TF2DIntensity - intensity) / x_traingle)*1;
+
+        // since value drops from 1 to 0 and not 0 to 1
+        return 1 - ratio;        
+    }
     return 0.0f;
+
 }
+
+
+
+
 
 // This function computes if a ray intersects with the axis-aligned bounding box around the volume.
 // If the ray intersects then tmin/tmax are set to the distance at which the ray hits/exists the
@@ -388,4 +406,23 @@ void Renderer::fillColor(int x, int y, const glm::vec4& color)
     const size_t index = static_cast<size_t>(m_config.renderResolution.x * y + x);
     m_frameBuffer[index] = color;
 }
+
+
+// Determine the range of values of intensity for gradient to be inside the traingle
+//  Given the triangle in the viewer is symmetric and is centred around m_config.TF2DIntensity
+//  We use the fatch that tan(theta)==(m_config.TF2DRadius/2)/(gradient_max-gradient_m)==x_traingle/y
+//  hence for given gradient, the point will lie inside the triangle only if x is within +/- x_traingle pf TF2DIntensity
+bool Renderer::isInRangeOfTriangle(float traingleHeight, float triangleRadius, float traingleApex, float yCoord, float xCoord) const
+{
+    // get range of x of the traingle given y
+    float x_traingle = (triangleRadius * yCoord) / (2 * traingleHeight);
+
+    // ensuring limits
+    float x_max = std::min(traingleApex + x_traingle, m_pVolume->maximum());
+    float x_min = std::max(traingleApex - x_traingle, m_pVolume->minimum());
+
+    // check if xCoord withing range of x_triangle else point not inside
+    return (xCoord <= x_max && xCoord >= x_min) ? true : false;
+}
+
 }
