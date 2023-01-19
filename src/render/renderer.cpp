@@ -335,9 +335,39 @@ glm::vec4 Renderer::getTFValue(float val) const
 // Use the getTF2DOpacity function that you implemented to compute the opacity according to the 2D transfer function.
 glm::vec4 Renderer::traceRayTF2D(const Ray& ray, float sampleStep) const
 {
-    return glm::vec4(0.0f);
+    glm::vec3 samplePos = ray.origin + ray.tmin * ray.direction;
+    const glm::vec3 increment = sampleStep * ray.direction;
+
+    glm::vec4 sampleColor, preSampleColor = glm::vec4(0.0f);
+
+    for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) {
+        const float val = m_pVolume->getSampleInterpolate(samplePos);
+        const float gradientM = m_pGradientVolume->getGradientInterpolate(samplePos).magnitude;
+
+        // front to back
+        glm::vec4 c = m_config.TF2DColor;
+        c.a = getTF2DOpacity(val, gradientM);
+        sampleColor = preSampleColor + (1.0f - preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
+        preSampleColor = sampleColor;
+    }
+    return sampleColor;
 }
 
+float cross(glm::vec2 p1, glm::vec2 p2, glm::vec2 p3)
+{
+    return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+}
+
+bool isInTriangle(float triangleHeight, float triangleRadius, float traingleApex, glm::vec2 sample)
+{
+    glm::vec2 apex = glm::vec2(traingleApex, 0.0f);
+    glm::vec2 right = glm::vec2(traingleApex + triangleRadius / 2.0f, triangleHeight);
+    glm::vec2 left = glm::vec2(traingleApex - triangleRadius / 2.0f, triangleHeight);
+
+    if (cross(apex, right, sample) > 0 && cross(right, left, sample) > 0 && cross(left, apex, sample) > 0)
+        return true;
+    return false;
+}
 // ======= TODO: IMPLEMENT ========
 // This function should return an opacity value for the given intensity and gradient according to the 2D transfer function.
 // Calculate whether the values are within the radius/intensity triangle defined in the 2D transfer function widget.
@@ -348,24 +378,24 @@ glm::vec4 Renderer::traceRayTF2D(const Ray& ray, float sampleStep) const
 float Renderer::getTF2DOpacity(float intensity, float gradientMagnitude) const
 {
 
-    float traingleHeight = m_pGradientVolume->maxMagnitude() - m_pGradientVolume->minMagnitude();    
+    float triangleHeight = m_pGradientVolume->maxMagnitude() - m_pGradientVolume->minMagnitude();    
 
-    if (isInRangeOfTriangle(traingleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, gradientMagnitude,intensity)) {
-        float x_traingle = (m_config.TF2DRadius * gradientMagnitude) / (2 * traingleHeight);
+    //if (isInRangeOfTriangle(triangleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, gradientMagnitude ,intensity)) {
+    //    float x_traingle = (m_config.TF2DRadius * gradientMagnitude) / (2 * triangleHeight);
 
+    //    // Calculate the ratio of distance of intensity from apex/ length from apex vertical to diagonal
+    //    float ratio = (std::abs(m_config.TF2DIntensity - intensity) / x_traingle) * 1;
 
-        //Calculate the ratio of distance of intensity from apex/ length from apex vertical to diagonal
-        float ratio = (std::abs(m_config.TF2DIntensity - intensity) / x_traingle)*1;
+    //    // since value drops from 1 to 0 and not 0 to 1
+    //    return 1 - ratio;
+    //}
 
-        // since value drops from 1 to 0 and not 0 to 1
-        return 1 - ratio;        
+    if (isInTriangle(triangleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, glm::vec2(intensity, gradientMagnitude))) {
+        return 0.3f;
     }
     return 0.0f;
 
 }
-
-
-
 
 
 // This function computes if a ray intersects with the axis-aligned bounding box around the volume.
