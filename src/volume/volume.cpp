@@ -116,45 +116,19 @@ float Volume::getSampleNearestNeighbourInterpolation(const glm::vec3& coord) con
     return getVoxel(roundToPositiveInt(coord.x), roundToPositiveInt(coord.y), roundToPositiveInt(coord.z));
 }
 
-// check if the point is in range
-bool checkBoundary(const glm::vec3& dim, const glm::vec3& coord)
-{
-    if (glm::any(glm::lessThan(coord, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord, glm::vec3(dim))))
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }     
-}
-
 // ======= TODO : IMPLEMENT the functions below for tri-linear interpolation ========
 // ======= Consider using the linearInterpolate and biLinearInterpolate functions ===
 // This function returns the trilinear interpolated value at the continuous 3D position given by coord.
 float Volume::getSampleTriLinearInterpolation(const glm::vec3& coord) const
 {
-    // TODO check boundary
-    if (glm::any(glm::lessThan(coord, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord, glm::vec3(m_dim))))
+    if (glm::any(glm::lessThan(coord - 1.0f, glm::vec3(0))) || glm::any(glm::greaterThanEqual(coord + 1.0f, glm::vec3(m_dim))))
         return 0.0f;
 
+    float c0 = biLinearInterpolate(glm::vec2(coord.x, coord.y), floor(coord.z));
+    float c1 = biLinearInterpolate(glm::vec2(coord.x, coord.y), ceil(coord.z));
 
-
-
-    // Apply bilinear interploations to x-y coordinates
-    float b0 = biLinearInterpolate(glm::vec2(coord.x, coord.y), floor(coord.z));
-    float b1 = biLinearInterpolate(glm::vec2(coord.x, coord.y), ceil(coord.z));
-
-
-    // Using z-distance between neighbors for normalizing to accomodate for any voxel length changes
-    glm::ivec3 topLeftCoordBack = glm::ivec3(floor(coord.x), ceil(coord.y), floor(coord.z));
-    glm::ivec3 topRightCoordBack = glm::ivec3(ceil(coord.x), ceil(coord.y), floor(coord.z));
-    glm::ivec3 bottomLeftCoordFront = glm::ivec3(floor(coord.x), floor(coord.y), ceil(coord.z));
-
-
-    //Apply final interpolation to the third direction to get final value
-    float c = (coord.z - (float)topLeftCoordBack.z) / ((float)bottomLeftCoordFront.z - (float)topRightCoordBack.z);
-    return linearInterpolate(b0, b1, c);
+    float f = coord.z - (float)floor(coord.z);
+    return linearInterpolate(c0, c1, f);
 }
 
 // This function linearly interpolates the value at X using incoming values g0 and g1 given a factor (equal to the positon of x in 1D)
@@ -167,44 +141,23 @@ float Volume::linearInterpolate(float g0, float g1, float factor)
 }
 
 // This function bi-linearly interpolates the value at the given continuous 2D XY coordinate for a fixed integer z coordinate.
-//
-//x00 -a- c00 -- x01
-// |       |      |
-// b       |      |
-// |  ---  p  --  |
-// |       |      |
-//x10 --- c01 -- x11
 float Volume::biLinearInterpolate(const glm::vec2& xyCoord, int z) const
 {
+    glm::ivec2 bottomLeftCoord = glm::ivec2(floor(xyCoord.x), floor(xyCoord.y));
+    glm::ivec2 topLeftCoord = glm::ivec2(floor(xyCoord.x), ceil(xyCoord.y));
+    glm::ivec2 bottomRightCoord = glm::ivec2(ceil(xyCoord.x), floor(xyCoord.y));
+    glm::ivec2 topRightCoord = glm::ivec2(ceil(xyCoord.x), ceil(xyCoord.y));
 
-    //Getting the nearest neighbors in the x-y directions (2 in x and 2 in y direction)
-    glm::ivec2 topLeftCoord = glm::ivec2(floor(xyCoord.x) , ceil(xyCoord.y)); // top-left
-    glm::ivec2 bottomLeftCoord = glm::ivec2(floor(xyCoord.x), floor(xyCoord.y)); // bottom-left
-    glm::ivec2 topRightCoord = glm::ivec2(ceil(xyCoord.x), ceil(xyCoord.y)); // top-right
-    glm::ivec2 bottomRightCoord = glm::ivec2(ceil(xyCoord.x), floor(xyCoord.y)); // bottom-right
+    float a = xyCoord.x - bottomLeftCoord.x;
+    float b = xyCoord.y - bottomLeftCoord.y;
 
-    float voxelTopLeft = 0.0f;
-    float voxelBottomLeft = 0.0f;
-    float voxelTopRight = 0.0f;
-    float voxelBottomRight = 0.0f;
+    float c00 = 
+        linearInterpolate(getVoxel(bottomLeftCoord.x, bottomLeftCoord.y, z), getVoxel(bottomRightCoord.x, bottomRightCoord.y, z), a);
 
+    float c10 = 
+        linearInterpolate(getVoxel(topLeftCoord.x, topLeftCoord.y, z), getVoxel(topRightCoord.x, topRightCoord.y, z), a);
 
-    // Getting voxel parameter if within boundaries
-    if (checkBoundary(m_dim, glm::vec3(topLeftCoord.x, topLeftCoord.y, z))) voxelTopLeft = getVoxel(topLeftCoord.x, topLeftCoord.y, z);
-    if (checkBoundary(m_dim, glm::vec3(bottomLeftCoord.x, bottomLeftCoord.y, z)))  voxelBottomLeft = getVoxel(bottomLeftCoord.x, bottomLeftCoord.y, z);
-    if (checkBoundary(m_dim, glm::vec3(topRightCoord.x, topRightCoord.y, z)))  voxelTopRight = getVoxel(topRightCoord.x, topRightCoord.y, z);
-    if (checkBoundary(m_dim, glm::vec3(bottomRightCoord.x, bottomRightCoord.y, z)))  voxelBottomRight = getVoxel(bottomRightCoord.x, bottomRightCoord.y, z);
-
-    float a = 0.0f;
-    float b = 0.0f;
-
-    a = (xyCoord.x - (float)bottomLeftCoord.x) / ((float)topRightCoord.x - (float)topLeftCoord.x);
-    b = ((float)bottomLeftCoord.y - xyCoord.y) / ((float)bottomLeftCoord.y - (float)topLeftCoord.y);
-
-    float linear1 = linearInterpolate(voxelTopLeft, voxelTopRight, a);
-    float linear2 = linearInterpolate(voxelBottomLeft, voxelBottomRight, a) ;
-
-    return linearInterpolate(linear1, linear2, b);
+    return linearInterpolate(c00, c10, b);
 }
 
 

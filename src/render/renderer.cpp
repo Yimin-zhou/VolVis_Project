@@ -217,7 +217,8 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
         glm::vec3 result_color = isoColor;
         if (m_config.volumeShading) {
             //We use the camera position for the light vector, however reverse it as we need the light going from the object to camera and not nice versa
-            result_color = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(accuratePos), -1.0f * m_pCamera->position(), m_pCamera->position());
+            glm::vec3 L = -1.0f * glm::normalize(m_pCamera->position());
+            result_color = computePhongShading(isoColor, m_pGradientVolume->getGradientInterpolate(accuratePos), L, m_pCamera->position());
         }
             
         return glm::vec4(result_color, 1.0f);
@@ -273,7 +274,7 @@ glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::Gr
 
     // Get normalized vectors
     glm::vec3 gradient_hat = gradient.magnitude != 0 ? glm::normalize(gradient.dir) : zero_vec;
-    glm::vec3 L_hat = glm::length(L) != 0 ? glm::normalize(L) : zero_vec;
+    glm::vec3 L_hat = glm::length(L) != 0 ? (L) : zero_vec;
     glm::vec3 V_hat = glm::length(V) != 0 ? glm::normalize(V) : zero_vec;
    
     // Get reflection vector
@@ -306,8 +307,9 @@ glm::vec4 Renderer::traceRayComposite(const Ray& ray, float sampleStep) const
         // front to back
         glm::vec4 c = getTFValue(val);
         // phong shading
+        glm::vec3 L = -2.0f * glm::normalize(m_pCamera->position());
         glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
-            -1.0f * m_pCamera->position(), m_pCamera->position());
+            L, m_pCamera->position());
         if (!glm::any(glm::isnan(shading)))
         {
             c = glm::vec4(shading, c.a);
@@ -347,6 +349,13 @@ glm::vec4 Renderer::traceRayTF2D(const Ray& ray, float sampleStep) const
         // front to back
         glm::vec4 c = m_config.TF2DColor;
         c.a = getTF2DOpacity(val, gradientM);
+        // phong shading
+        glm::vec3 L = -3.0f * glm::normalize(m_pCamera->position());
+        glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
+            L, m_pCamera->position());
+        if (!glm::any(glm::isnan(shading))) {
+            c = glm::vec4(shading, c.a);
+        }
         sampleColor = preSampleColor + (1.0f - preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
         preSampleColor = sampleColor;
     }
@@ -390,9 +399,16 @@ float Renderer::getTF2DOpacity(float intensity, float gradientMagnitude) const
     //    return 1 - ratio;
     //}
 
-    if (isInTriangle(triangleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, glm::vec2(intensity, gradientMagnitude))) {
-        return 0.3f;
+     if (isInRangeOfTriangle(triangleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, gradientMagnitude ,intensity)) {
+         float x_traingle = m_config.TF2DRadius;
+
+        // Calculate the ratio of distance of intensity from apex/ length from apex vertical to diagonal
+        float ratio = (std::abs(m_config.TF2DIntensity - intensity) / x_traingle) * 1;
+
+        // since value drops from 1 to 0 and not 0 to 1
+        return (1 - ratio) * (m_config.TF2DColor.a);
     }
+
     return 0.0f;
 
 }
