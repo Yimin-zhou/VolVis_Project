@@ -395,11 +395,12 @@ float Renderer::getTF2DOpacity(float intensity, float gradientMagnitude) const
 
      if (isInTriangle(triangleHeight, m_config.TF2DRadius * 2, m_config.TF2DIntensity, glm::vec2(intensity, gradientMagnitude))) 
      {
-         // m_config.TF2DRadius  is half of the triangle base line
-        float ratio = (m_config.TF2DRadius) * (gradientMagnitude / triangleHeight);
-        float distance = ratio * (m_config.TF2DRadius);
-        float f = abs(intensity - m_config.TF2DIntensity) / distance;
-        return (1.0f - f) * m_config.TF2DColor.a;
+        // m_config.TF2DRadius  is half of the triangle base line
+        // Distance from center to left or right diagonal line (y = gradientMagnitude)
+        float distance = (m_config.TF2DRadius) * (gradientMagnitude / triangleHeight);
+        // Calculate the ratio of distance of intensity from center vertical line to diagonal line
+        float ratio = abs(intensity - m_config.TF2DIntensity) / distance;
+        return (1.0f - ratio) * m_config.TF2DColor.a;
      }
 
     return 0.0f;
