@@ -280,12 +280,13 @@ glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::Gr
     // Get reflection vector
     glm::vec3 R = 2.0f * glm::dot(L_hat ,gradient_hat) * gradient_hat - L_hat;
     glm::vec3 R_hat = glm::length(R) != 0 ? glm::normalize(R) : zero_vec;
+
     glm::vec3 specular = k_s * pow(glm::dot(R_hat, V_hat), alpha) * color;
     glm::vec3 ambient = k_a * color;
     glm::vec3 diffuse = k_d * glm::dot(L_hat, gradient_hat) * color;
 
     //Calculate illumination
-    glm::vec3 i_p = ambient+specular+diffuse;
+    glm::vec3 i_p = ambient + specular + diffuse;
 
     return i_p;
 }
@@ -349,13 +350,6 @@ glm::vec4 Renderer::traceRayTF2D(const Ray& ray, float sampleStep) const
         // front to back
         glm::vec4 c = m_config.TF2DColor;
         c.a = getTF2DOpacity(val, gradientM);
-        // phong shading
-        glm::vec3 L = -3.0f * glm::normalize(m_pCamera->position());
-        glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
-            L, m_pCamera->position());
-        if (!glm::any(glm::isnan(shading))) {
-            c = glm::vec4(shading, c.a);
-        }
         sampleColor = preSampleColor + (1.0f - preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
         preSampleColor = sampleColor;
     }
@@ -396,18 +390,17 @@ float Renderer::getTF2DOpacity(float intensity, float gradientMagnitude) const
     //    float ratio = (std::abs(m_config.TF2DIntensity - intensity) / x_traingle) * 1;
 
     //    // since value drops from 1 to 0 and not 0 to 1
-    //    return 1 - ratio;
+    //    return (1 - ratio);
     //}
 
-     if (isInRangeOfTriangle(triangleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, gradientMagnitude ,intensity)) {
-         float x_traingle = m_config.TF2DRadius;
-
-        // Calculate the ratio of distance of intensity from apex/ length from apex vertical to diagonal
-        float ratio = (std::abs(m_config.TF2DIntensity - intensity) / x_traingle) * 1;
-
-        // since value drops from 1 to 0 and not 0 to 1
-        return (1 - ratio) * (m_config.TF2DColor.a);
-    }
+     if (isInTriangle(triangleHeight, m_config.TF2DRadius * 2, m_config.TF2DIntensity, glm::vec2(intensity, gradientMagnitude))) 
+     {
+         // m_config.TF2DRadius  is half of the triangle base line
+        float ratio = (m_config.TF2DRadius) * (gradientMagnitude / triangleHeight);
+        float distance = ratio * (m_config.TF2DRadius);
+        float f = abs(intensity - m_config.TF2DIntensity) / distance;
+        return (1.0f - f) * m_config.TF2DColor.a;
+     }
 
     return 0.0f;
 
