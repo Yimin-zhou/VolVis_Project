@@ -309,11 +309,13 @@ glm::vec4 Renderer::traceRayComposite(const Ray& ray, float sampleStep) const
         glm::vec4 c = getTFValue(val);
         // phong shading
         glm::vec3 L = -2.0f * glm::normalize(m_pCamera->position());
-        glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
-            L, m_pCamera->position());
-        if (!glm::any(glm::isnan(shading)))
-        {
-            c = glm::vec4(shading, c.a);
+        if (m_config.volumeShading) {
+            glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
+                L, m_pCamera->position());
+            if (!glm::any(glm::isnan(shading)))
+            {
+                c = glm::vec4(shading, c.a);
+            }
         }
 
         sampleColor = preSampleColor + (1.0f - preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
