@@ -11,8 +11,7 @@ enum class RenderMode {
     RenderMIP,
     RenderIso,
     RenderComposite,
-    RenderTF2D,
-    RenderMIDA
+    RenderTF2D
 };
 
 struct RenderConfig {
@@ -20,7 +19,6 @@ struct RenderConfig {
     glm::ivec2 renderResolution;
 
     bool volumeShading { false };
-    bool boundaryEnhancement { false };
     float isoValue { 95.0f };
 
     // 1D transfer function.
