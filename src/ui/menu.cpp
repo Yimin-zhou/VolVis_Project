@@ -132,10 +132,12 @@ void Menu::showRayCastTab(std::chrono::duration<double> renderTime)
         ImGui::RadioButton("IsoSurface Rendering", pRenderModeInt, int(render::RenderMode::RenderIso));
         ImGui::RadioButton("Compositing", pRenderModeInt, int(render::RenderMode::RenderComposite));
         ImGui::RadioButton("2D Transfer Function", pRenderModeInt, int(render::RenderMode::RenderTF2D));
+        ImGui::RadioButton("MIDA", pRenderModeInt, int(render::RenderMode::RenderMIDA));
 
         ImGui::NewLine();
 
         ImGui::Checkbox("Volume Shading", &m_renderConfig.volumeShading);
+        ImGui::Checkbox("Boundary Enhancement", &m_renderConfig.boundaryEnhancement);
 
         ImGui::NewLine();
 

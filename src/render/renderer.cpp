@@ -122,6 +122,11 @@ void Renderer::render()
                 color = traceRayTF2D(ray, sampleStep);
                 break;
             }
+            case RenderMode::RenderMIDA: {
+                color = traceRayMIDA(ray, sampleStep);
+                break;
+            }
+
             };
             // Write the resulting color to the screen.
             fillColor(x, y, color);
@@ -149,6 +154,7 @@ void Renderer::render()
 //
 //    return glm::vec3(x, y, z);
 //}
+
 
 // ======= DO NOT MODIFY THIS FUNCTION ========
 // This function generates a view alongside a plane perpendicular to the camera through the center of the volume
@@ -268,7 +274,7 @@ glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::Gr
     const float k_a = 0.1;
     const float k_d = 0.7;
     const float k_s = 0.2;
-    const float alpha = 100;
+    const float alpha = 10;
     glm::vec3 zero_vec = glm::vec3(0.0f);
 
     // Get normalized vectors
@@ -306,11 +312,12 @@ glm::vec4 Renderer::traceRayComposite(const Ray& ray, float sampleStep) const
         // front to back
         glm::vec4 c = getTFValue(val);
         // phong shading
-        glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
-            -1.0f * m_pCamera->position(), m_pCamera->position());
-        if (!glm::any(glm::isnan(shading)))
-        {
-            c = glm::vec4(shading, c.a);
+        if (m_config.volumeShading) {
+            glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
+                -1.0f * m_pCamera->position(), m_pCamera->position());
+            if (!glm::any(glm::isnan(shading))) {
+                c = glm::vec4(shading, c.a);
+            }
         }
 
         sampleColor = preSampleColor + (1.0f - preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
@@ -342,13 +349,73 @@ glm::vec4 Renderer::traceRayTF2D(const Ray& ray, float sampleStep) const
 
     for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) {
         const float val = m_pVolume->getSampleInterpolate(samplePos);
-        const float gradientM = m_pGradientVolume->getGradientInterpolate(samplePos).magnitude;
+        const const float gradientM = m_pGradientVolume->getGradientInterpolate(samplePos).magnitude;
 
         // front to back
         glm::vec4 c = m_config.TF2DColor;
         c.a = getTF2DOpacity(val, gradientM);
         sampleColor = preSampleColor + (1.0f - preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
         preSampleColor = sampleColor;
+    }
+    return sampleColor;
+}
+
+glm::vec4 Renderer::traceRayMIDA(const Ray& ray, float sampleStep) const
+{
+    const float k_gc = 0.7f;
+    const float k_gs = 10.0f;
+    const float k_ge = 2.0f;
+    glm::vec3 samplePos = ray.origin + ray.tmin * ray.direction;
+    const glm::vec3 increment = sampleStep * ray.direction;
+
+    glm::vec4 sampleColor, preSampleColor = glm::vec4(0.0f);
+
+    const float volRange = m_pVolume->maximum() - m_pVolume->minimum();
+    float currentMax = 0.0f;
+    float delta = 0.0f;
+    float opacity_new;
+    float beta = 1.0f;
+
+    for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) {
+        const float val = m_pVolume->getSampleInterpolate(samplePos);
+        if (val > 1.0f) {
+        float yes = 1.0f;
+        }
+        const float val_norm = (val - m_pVolume->minimum()) / volRange;
+        if (val_norm > currentMax) {
+            delta = val_norm - currentMax;
+            currentMax = val_norm;
+        } else {
+            delta = 0;
+        }
+
+        
+
+        // front to back
+        beta = 1 - delta;
+        glm::vec4 c = getTFValue(val);
+
+        glm::vec3 L = -2.0f * glm::normalize(m_pCamera->position());
+        if (m_config.volumeShading) {
+            glm::vec3 shading = computePhongShading(glm::vec3(c), m_pGradientVolume->getGradientInterpolate(samplePos),
+                L, m_pCamera->position());
+            if (!glm::any(glm::isnan(shading))) {
+                c = glm::vec4(shading, c.a);
+            }
+        }
+     
+
+        //float opacity = c.a;
+        sampleColor = beta * preSampleColor + (1.0f - beta * preSampleColor.a) * (glm::vec4(c.r * c.a, c.g * c.a, c.b * c.a, c.a));
+        opacity_new = beta * preSampleColor.a + (1.0f - beta * preSampleColor.a) * c.a;
+        sampleColor.a = opacity_new;
+        preSampleColor = sampleColor;
+
+    }
+
+    if (m_config.boundaryEnhancement) {
+        const float gradientM = m_pGradientVolume->getGradientInterpolate(samplePos).magnitude;
+        sampleColor.a = sampleColor.a * (k_gc + k_gs * pow((gradientM), k_ge));
     }
     return sampleColor;
 }
@@ -436,6 +503,7 @@ void Renderer::fillColor(int x, int y, const glm::vec4& color)
     const size_t index = static_cast<size_t>(m_config.renderResolution.x * y + x);
     m_frameBuffer[index] = color;
 }
+
 
 
 // Determine the range of values of intensity for gradient to be inside the traingle
