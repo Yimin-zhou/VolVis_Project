@@ -136,20 +136,6 @@ void Renderer::render()
 #endif
 }
 
-//glm::vec3 addVector(const glm::vec3& vec1, const glm::vec3& vec2)
-//{
-//    float x = vec1.x + vec2.x;
-//    float y = vec1.y + vec2.y;
-//    float z = vec1.z + vec2.z;
-//
-//
-//    glm::vec3 v1(1.f, 1.f, 1.f);
-//    glm::vec3 v2(2.f, 2.f, 2.f);
-//    glm::vec3 v3 = v1 + v2;
-//
-//    return glm::vec3(x, y, z);
-//}
-
 // ======= DO NOT MODIFY THIS FUNCTION ========
 // This function generates a view alongside a plane perpendicular to the camera through the center of the volume
 //  using the slicing technique.
@@ -303,6 +289,7 @@ glm::vec4 Renderer::traceRayComposite(const Ray& ray, float sampleStep) const
 
     for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) 
     {
+        if (preSampleColor.a == 0.95) break;
         const float val = m_pVolume->getSampleInterpolate(samplePos);
 
         // front to back
@@ -345,7 +332,9 @@ glm::vec4 Renderer::traceRayTF2D(const Ray& ray, float sampleStep) const
 
     glm::vec4 sampleColor, preSampleColor = glm::vec4(0.0f);
 
-    for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) {
+    for (float t = ray.tmin; t <= ray.tmax; t += sampleStep, samplePos += increment) 
+    {
+        if (preSampleColor.a == 0.95) break;
         const float val = m_pVolume->getSampleInterpolate(samplePos);
         const float gradientM = m_pGradientVolume->getGradientInterpolate(samplePos).magnitude;
 
@@ -369,6 +358,7 @@ bool isInTriangle(float triangleHeight, float triangleRadius, float traingleApex
     glm::vec2 right = glm::vec2(traingleApex + triangleRadius / 2.0f, triangleHeight);
     glm::vec2 left = glm::vec2(traingleApex - triangleRadius / 2.0f, triangleHeight);
 
+    // use cross product to decide whether the point lands in the triangle
     if (cross(apex, right, sample) > 0 && cross(right, left, sample) > 0 && cross(left, apex, sample) > 0)
         return true;
     return false;
@@ -384,16 +374,6 @@ float Renderer::getTF2DOpacity(float intensity, float gradientMagnitude) const
 {
 
     float triangleHeight = m_pGradientVolume->maxMagnitude() - m_pGradientVolume->minMagnitude();    
-
-    //if (isInRangeOfTriangle(triangleHeight, m_config.TF2DRadius, m_config.TF2DIntensity, gradientMagnitude ,intensity)) {
-    //    float x_traingle = (m_config.TF2DRadius * gradientMagnitude) / (2 * triangleHeight);
-
-    //    // Calculate the ratio of distance of intensity from apex/ length from apex vertical to diagonal
-    //    float ratio = (std::abs(m_config.TF2DIntensity - intensity) / x_traingle) * 1;
-
-    //    // since value drops from 1 to 0 and not 0 to 1
-    //    return (1 - ratio);
-    //}
 
      if (isInTriangle(triangleHeight, m_config.TF2DRadius * 2, m_config.TF2DIntensity, glm::vec2(intensity, gradientMagnitude))) 
      {
@@ -448,23 +428,4 @@ void Renderer::fillColor(int x, int y, const glm::vec4& color)
     const size_t index = static_cast<size_t>(m_config.renderResolution.x * y + x);
     m_frameBuffer[index] = color;
 }
-
-
-// Determine the range of values of intensity for gradient to be inside the traingle
-//  Given the triangle in the viewer is symmetric and is centred around m_config.TF2DIntensity
-//  We use the fatch that tan(theta)==(m_config.TF2DRadius/2)/(gradient_max-gradient_m)==x_traingle/y
-//  hence for given gradient, the point will lie inside the triangle only if x is within +/- x_traingle pf TF2DIntensity
-bool Renderer::isInRangeOfTriangle(float traingleHeight, float triangleRadius, float traingleApex, float yCoord, float xCoord) const
-{
-    // get range of x of the traingle given y
-    float x_traingle = (triangleRadius * yCoord) / (2 * traingleHeight);
-
-    // ensuring limits
-    float x_max = std::min(traingleApex + x_traingle, m_pVolume->maximum());
-    float x_min = std::max(traingleApex - x_traingle, m_pVolume->minimum());
-
-    // check if xCoord withing range of x_triangle else point not inside
-    return (xCoord <= x_max && xCoord >= x_min) ? true : false;
-}
-
 }
