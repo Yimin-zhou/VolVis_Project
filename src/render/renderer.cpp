@@ -194,7 +194,7 @@ glm::vec4 Renderer::traceRayISO(const Ray& ray, float sampleStep) const
             isHit = true;
             break;
         }
-        preSamplePos = samplePos;
+        preSamplePos = accuratePos;
         preT = t;
     }
 
@@ -252,24 +252,26 @@ float Renderer::bisectionAccuracy(const Ray& ray, float t0, float t1, float isoV
 // You are free to choose any specular power that you'd like.
 glm::vec3 Renderer::computePhongShading(const glm::vec3& color, const volume::GradientVoxel& gradient, const glm::vec3& L, const glm::vec3& V)
 {
-    const float k_a = 0.1;
-    const float k_d = 0.7;
-    const float k_s = 0.2;
-    const float alpha = 100;
+    const float k_a = 0.1f;
+    const float k_d = 0.7f;
+    const float k_s = 0.2f;
+    const float alpha = 100.0f;
     glm::vec3 zero_vec = glm::vec3(0.0f);
 
     // Get normalized vectors
-    glm::vec3 gradient_hat = gradient.magnitude != 0 ? glm::normalize(gradient.dir) : zero_vec;
-    glm::vec3 L_hat = glm::length(L) != 0 ? (L) : zero_vec;
-    glm::vec3 V_hat = glm::length(V) != 0 ? glm::normalize(V) : zero_vec;
+    glm::vec3 gradient_hat = gradient.magnitude != 0.0f ? glm::normalize(gradient.dir) : zero_vec;
+    glm::vec3 L_hat = glm::length(L) != 0.0f ? (L) : zero_vec;
+    glm::vec3 V_hat = glm::length(V) != 0.0f ? glm::normalize(V) : zero_vec;
    
+    // Dot product
+    float dotNL = glm::clamp(glm::dot(L_hat, gradient_hat), 0.0f, 1.0f);
     // Get reflection vector
-    glm::vec3 R = 2.0f * glm::dot(L_hat ,gradient_hat) * gradient_hat - L_hat;
-    glm::vec3 R_hat = glm::length(R) != 0 ? glm::normalize(R) : zero_vec;
+    glm::vec3 R = 2.0f * dotNL * gradient_hat - L_hat;
+    glm::vec3 R_hat = glm::length(R) != 0.0f ? glm::normalize(R) : zero_vec;
 
-    glm::vec3 specular = k_s * pow(glm::dot(R_hat, V_hat), alpha) * color;
+    glm::vec3 specular = k_s * pow(glm::clamp(glm::dot(R_hat, V_hat), 0.0f, 1.0f), alpha) * color;
     glm::vec3 ambient = k_a * color;
-    glm::vec3 diffuse = k_d * glm::dot(L_hat, gradient_hat) * color;
+    glm::vec3 diffuse = k_d * dotNL * color;
 
     //Calculate illumination
     glm::vec3 i_p = ambient + specular + diffuse;
