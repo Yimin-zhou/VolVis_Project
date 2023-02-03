@@ -134,6 +134,9 @@ void Menu::showRayCastTab(std::chrono::duration<double> renderTime)
         ImGui::RadioButton("2D Transfer Function", pRenderModeInt, int(render::RenderMode::RenderTF2D));
 
         ImGui::NewLine();
+        ImGui::Checkbox("Bisection", &m_renderConfig.bisection);
+
+        ImGui::NewLine();
 
         ImGui::Checkbox("Volume Shading", &m_renderConfig.volumeShading);
 

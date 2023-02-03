@@ -18,6 +18,7 @@ struct RenderConfig {
     RenderMode renderMode { RenderMode::RenderSlicer };
     glm::ivec2 renderResolution;
 
+    bool bisection{ true };
     bool volumeShading { false };
     float isoValue { 95.0f };
 
